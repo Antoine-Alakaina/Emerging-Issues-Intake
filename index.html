@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Integrity Intake Tool</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container my-5">
+        <h1 class="text-center">Data Integrity Intake Tool</h1>
+        <button id="openForm" class="btn btn-primary my-4">Submit New Intake</button>
+
+        <!-- Modal for Intake Form -->
+        <div class="modal fade" id="intakeFormModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Submit Intake</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="intakeForm">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category" required>
+                                    <option value="">Choose...</option>
+                                    <option value="Data Quality">Data Quality</option>
+                                    <option value="Governance">Governance</option>
+                                    <option value="Reporting Error">Reporting Error</option>
+                                    <option value="Compliance">Compliance</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" required>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success">Submit</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DataTable -->
+        <table id="intakeTable" class="display nowrap" style="width:100%">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Submission Date</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Bootstrap and jQuery Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables Scripts -->
+    <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        class IntakeManager {
+            constructor() {
+                this.intakes = [];
+                this.apiUrl = "https://example.com/sharepoint-list-api"; // Replace with your SharePoint API endpoint
+                this.initDataTable();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                // Open Form Modal
+                $('#openForm').on('click', () => {
+                    $('#intakeFormModal').modal('show');
+                });
+
+                // Submit Form
+                $('#intakeForm').on('submit', (e) => {
+                    e.preventDefault();
+                    const newIntake = {
+                        title: $('#title').val(),
+                        description: $('#description').val(),
+                        category: $('#category').val(),
+                        priority: this.autoEscalate($('#priority').val()),
+                        submissionDate: new Date().toISOString(),
+                    };
+                    this.submitIntake(newIntake);
+                });
+            }
+
+            initDataTable() {
+                this.dataTable = $('#intakeTable').DataTable({
+                    responsive: true,
+                    data: this.intakes,
+                    columns: [
+                        { data: 'id' },
+                        { data: 'title' },
+                        { data: 'description' },
+                        { data: 'category' },
+                        { data: 'priority' },
+                        { data: 'submissionDate' }
+                    ]
+                });
+            }
+
+            autoEscalate(priority) {
+                if (priority === "Low") return "Medium";
+                if (priority === "Medium") return "High";
+                return priority; // High stays High
+            }
+
+            async submitIntake(intake) {
+                try {
+                    const response = await fetch(this.apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(intake)
+                    });
+
+                    if (!response.ok) throw new Error("Failed to submit intake.");
+
+                    const data = await response.json();
+                    intake.id = data.id; // Assuming API returns the ID
+                    this.addToTable(intake);
+                    $('#intakeFormModal').modal('hide');
+                    $('#intakeForm')[0].reset();
+                } catch (error) {
+                    console.error(error);
+                    alert("Error submitting intake.");
+                }
+            }
+
+            addToTable(intake) {
+                this.intakes.push(intake);
+                this.dataTable.row.add(intake).draw();
+            }
+        }
+
+        $(document).ready(() => {
+            new IntakeManager();
+        });
+    </script>
+</body>
+</html>
